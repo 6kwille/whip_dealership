@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>whip_dealership</title>
+<link rel="stylesheet" href="css/dealership.css">
+<!-- whip_core's page tools: tools and tests read and press this page by its words, and its errors are kept for them
+     (whip_core's js/page-tools.js; lib/satellite.lua passes the asks in). -->
+<script src="https://cfx-nui-whip_core/html/js/page-tools.js"></script>
+</head>
+<body>
+
+<!-- Hidden until the client sends dealershipOpen. Drawn in whip_autos' language (its picker column and
+     basket card), at the size of the /whip window. -->
+<div id="dealer" class="overlay" aria-hidden="true">
+    <div class="window" role="dialog" aria-label="Dealership">
+
+        <!-- ---- the head: back, what is on show, cash, close ---- -->
+        <header class="head">
+            <button id="back" class="back disc" hidden aria-label="Back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19.4 12H5.2"/><path d="M10.6 6.6 5.2 12l5.4 5.4"/>
+                </svg>
+            </button>
+            <div class="titles">
+                <h1 id="title" class="title">Dealership</h1>
+                <p id="sub" class="sub"></p>
+            </div>
+            <div class="wallet">
+                <span class="wallet-k">Cash on you</span>
+                <b id="cash" class="wallet-v">$0</b>
+            </div>
+            <button id="close" class="close disc" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                     stroke-linecap="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>
+            </button>
+        </header>
+
+        <div class="body">
+            <!-- ---- left: the picker column ---- -->
+            <section class="col" aria-label="Cars for sale">
+                <div class="tools">
+                    <input id="search" class="search" type="text" placeholder="Search by name"
+                           autocomplete="off" spellcheck="false">
+                    <div id="sort" class="seg" hidden>
+                        <button class="seg-btn" data-sort="price">Price</button>
+                        <button class="seg-btn" data-sort="name">A–Z</button>
+                        <button class="seg-btn" data-sort="speed">Fastest</button>
+                    </div>
+                </div>
+                <div id="list" class="list" role="listbox" aria-label="Cars"></div>
+                <p id="hint" class="hint"></p>
+            </section>
+
+            <!-- ---- right: the car ---- -->
+            <section id="stage" class="stage" aria-live="polite">
+                <div id="stage-empty" class="stage-empty">
+                    <svg class="stage-empty-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3.5 15.5v-3l2.2-4.6a2 2 0 0 1 1.8-1.1h9a2 2 0 0 1 1.8 1.1l2.2 4.6v3"/>
+                        <path d="M3.5 15.5h17v2.2a.8.8 0 0 1-.8.8h-1.6a.8.8 0 0 1-.8-.8v-.7H6.7v.7a.8.8 0 0 1-.8.8H4.3a.8.8 0 0 1-.8-.8z"/>
+                        <path d="M3.5 12.5h17"/><circle cx="7.2" cy="14.4" r=".6"/><circle cx="16.8" cy="14.4" r=".6"/>
+                    </svg>
+                    <p class="stage-empty-title">Pick a class, or search by name</p>
+                    <p id="stage-empty-note" class="stage-empty-note"></p>
+                </div>
+
+                <div id="car" class="car" hidden>
+                    <div class="shot">
+                        <img id="car-img" alt="">
+                    </div>
+
+                    <div class="car-head">
+                        <div class="car-names">
+                            <h2 id="car-name" class="car-name"></h2>
+                            <p id="car-meta" class="car-meta"></p>
+                        </div>
+                        <div id="car-price" class="car-price"></div>
+                    </div>
+
+                    <dl id="stats" class="stats"></dl>
+
+                    <footer class="car-foot">
+                        <div class="car-note">
+                            <b>Delivered to the forecourt</b>
+                            <span>The key goes straight into your pockets.</span>
+                        </div>
+                        <button id="buy" class="btn-hot buy">Buy</button>
+                    </footer>
+                </div>
+            </section>
+        </div>
+
+        <!-- ---- checkout: whip_autos' basket card, for one car ---- -->
+        <div id="checkout" class="confirm" hidden>
+            <div class="confirm-box checkout-box" role="dialog" aria-label="Checkout">
+                <h2 class="confirm-title">Checkout</h2>
+
+                <div class="line">
+                    <span class="line-shot"><img id="co-img" alt=""></span>
+                    <span class="line-what">
+                        <span id="co-name" class="line-name"></span>
+                        <span id="co-class" class="line-class"></span>
+                    </span>
+                    <span id="co-price" class="line-price"></span>
+                </div>
+
+                <div class="sum">
+                    <div class="sum-row">
+                        <span>Total</span>
+                        <span id="co-total" class="pay-total"></span>
+                    </div>
+                    <div class="sum-row sum-cash">
+                        <span>Cash on you</span>
+                        <span id="co-cash"></span>
+                    </div>
+                </div>
+
+                <p class="confirm-body">
+                    Paid the moment you choose. The car waits on the forecourt with its key in your pockets.
+                </p>
+
+                <div class="pay-methods">
+                    <button id="pay-cash" class="pay-method">
+                        <span class="disc">
+                            <!-- banknote -->
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3.2" y="6.6" width="17.6" height="10.8" rx="1.4"/>
+                                <circle cx="12" cy="12" r="2.3"/>
+                            </svg>
+                        </span>
+                        <span class="pay-method-text"><b>Cash</b><small id="pay-cash-note">From your pockets</small></span>
+                    </button>
+                    <button id="pay-bank" class="pay-method">
+                        <span class="disc">
+                            <!-- whip's `bank` glyph -->
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2.8 9.4 12 4.2l9.2 5.2"/>
+                                <path d="M6.2 11.6v6.2"/><path d="M12 11.6v6.2"/><path d="M17.8 11.6v6.2"/>
+                                <path d="M3.6 20.2h16.8"/>
+                            </svg>
+                        </span>
+                        <span class="pay-method-text"><b>Bank</b><small id="pay-bank-note"></small></span>
+                    </button>
+                </div>
+
+                <!-- More than one account: Bank opens this list, and the chosen account pays. -->
+                <div id="accounts" class="accounts" hidden>
+                    <p class="accounts-k">Pay from</p>
+                    <div id="account-list" class="account-list" role="listbox" aria-label="Accounts"></div>
+                </div>
+
+                <p id="co-status" class="co-status" hidden></p>
+
+                <div class="confirm-actions">
+                    <button id="co-keep" class="btn btn-quiet">Keep browsing</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="js/dealership.js"></script>
+</body>
+</html>

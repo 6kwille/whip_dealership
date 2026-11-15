@@ -1,0 +1,999 @@
+/* ============================================
+   The dealership
+   ============================================
+   whip_autos' language (its picker column, rows, badge discs, basket card and pay tiles) in a window
+   the size of the /whip menu. White fill = "this one"; blue only for whip's accent (the search edge).
+   CEF is Chromium 103: no :has(), nesting or color-mix(). */
+
+/* whip_core's own faces (Barlow, Bricolage), so it loads without Google and looks like the rest of whip. The old
+   Plus Jakarta files were whip_core's before the 17 Oct font change and are going (audit 20, DX-8). */
+@import url('https://cfx-nui-whip_core/html/css/fonts.css');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    /* whip's tokens, copied from whip_core/html/css/base.css (this frame can't load it). */
+    --ui-surface-solid:  rgb(10, 12, 18);
+    --ui-border:         rgba(255, 255, 255, 0.08);
+    --ui-border-hover:   rgba(255, 255, 255, 0.14);
+    --ui-shadow-modal:   0 24px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    --ui-text:       rgba(255, 255, 255, 0.93);
+    --ui-text-mid:   rgba(255, 255, 255, 0.5);
+    --ui-text-label: rgba(255, 255, 255, 0.48);
+    --ui-text-dim:   rgba(255, 255, 255, 0.25);
+
+    --ui-accent:     #60a5fa;
+    --ui-error:      #f87171;
+
+    /* The white "this one" fill and the dark ink drawn on it. */
+    --white-fill: rgba(255, 255, 255, 0.93);
+    --ink:        rgb(10, 12, 18);
+    --ink-mid:    rgba(10, 12, 18, 0.6);
+    --ink-dim:    rgba(10, 12, 18, 0.4);
+
+    /* The badge disc. The black outline keeps the white ring readable over anything. */
+    --disc-core:    rgba(10, 12, 18, 0.55);
+    --disc-ring:    rgba(255, 255, 255, 0.55);
+    --disc-outline: 0 0 0 1.5px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+
+    --ui-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --font: 'Barlow', 'Segoe UI', -apple-system, sans-serif;
+
+    /* whip_autos' radii (whip's 20/12/8/4 halved for its 2x drawing). */
+    --r-panel: 10px;
+    --r-pop:    6px;
+    --r-slot:   4px;
+    --r-pill:   2px;
+
+    /* The /whip window: 1250×690 drawn at 1.8 × (window height / 1440). --res-scale is set by the
+       script, so the window keeps the same share of the screen at any resolution. */
+    --res-scale: 1;
+    --ui-scale:  calc(var(--res-scale) * 1.8);
+
+    --col-w:  380px;
+    --foot-h: 72px;   /* the stage's Buy bar and the column's key hints, level */
+}
+
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent;
+    font-family: var(--font);
+    color: var(--ui-text);
+    user-select: none;
+}
+
+::selection { background: rgba(96, 165, 250, 0.35); color: #fff; }
+
+svg { display: block; }
+
+/* ============================================
+   The overlay and the window
+   ============================================ */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+}
+.overlay.open { display: flex; }
+
+.window {
+    position: relative;
+    width: 1250px;
+    height: 690px;
+    display: flex;
+    flex-direction: column;
+    zoom: var(--ui-scale);
+    background: var(--ui-surface-solid);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--r-panel);
+    box-shadow: var(--ui-shadow-modal);
+    overflow: hidden;
+    animation: windowIn 0.26s var(--ui-ease) both;
+}
+
+/* whip's top-edge highlight. */
+.window::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16%;
+    right: 16%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+    pointer-events: none;
+}
+
+@keyframes windowIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.99); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ============================================
+   The badge disc — back, close, payment choices
+   ============================================
+   Same states as whip's 3D prompt: idle dark disc, bright ring on hover, white fill when it acts. */
+
+.disc {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--disc-core);
+    border: 2px solid var(--disc-ring);
+    box-shadow: var(--disc-outline);
+    color: rgba(255, 255, 255, 0.9);
+    transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+.disc svg { width: 11px; height: 11px; }
+
+.back,
+.close {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font);
+}
+.back svg { width: 14px; height: 14px; }
+.close svg { width: 11px; height: 11px; }
+.back:hover,
+.close:hover,
+.back:focus-visible,
+.close:focus-visible {
+    background: #fff;
+    border-color: #fff;
+    color: var(--ink);
+    outline: none;
+}
+.back[hidden] { display: none; }
+
+/* ============================================
+   The head
+   ============================================ */
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px 15px;
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.titles { flex: 1; min-width: 0; }
+
+.title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sub {
+    margin-top: 2px;
+    font-size: 11.5px;
+    line-height: 1.3;
+    color: var(--ui-text-label);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Cash on you, set like whip_autos' tally. */
+.wallet {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    padding-right: 4px;
+}
+.wallet-k {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ui-text-label);
+}
+.wallet-v {
+    font-variant-numeric: tabular-nums;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+}
+
+/* ============================================
+   The body: the picker column and the stage
+   ============================================ */
+
+.body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: var(--col-w) 1fr;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid var(--ui-border);
+}
+
+/* ---- the tools: search, and the sort keys in a list ---- */
+
+.tools {
+    display: flex;
+    gap: 6px;
+    padding: 14px 16px 12px;
+}
+
+/* whip's text field; the blue edge shows it has the keyboard. */
+.search {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ui-text);
+    caret-color: #fff;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--r-slot);
+    padding: 8px 10px;
+    outline: none;
+    user-select: text;
+    transition: border-color 0.12s ease, background 0.12s ease;
+}
+.search:hover { border-color: var(--ui-border-hover); }
+.search:focus { border-color: var(--ui-accent); background: rgba(255, 255, 255, 0.05); }
+.search::placeholder { color: var(--ui-text-mid); }
+
+/* Segmented keys; the chosen one is white. */
+.seg {
+    flex: 0 0 auto;
+    display: flex;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--r-slot);
+    overflow: hidden;
+}
+.seg[hidden] { display: none; }
+.seg-btn {
+    padding: 0 9px;
+    font-family: var(--font);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ui-text-mid);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    transition: color 0.1s ease, background 0.1s ease;
+}
+.seg-btn:hover { color: var(--ui-text); background: rgba(255, 255, 255, 0.05); }
+.seg-btn.on { color: var(--ink); background: var(--white-fill); }
+.seg-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px var(--ui-accent); }
+
+/* ---- the list ---- */
+
+.list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 8px 8px;
+    border-top: 1px solid var(--ui-border);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.list::-webkit-scrollbar { width: 3px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 2px; }
+
+/* Classes, two to a row (whip_autos' engine types). */
+.list.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 52px;
+    gap: 6px;
+    align-content: start;
+    padding-top: 8px;
+}
+.type {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    padding: 0 12px;
+    border-radius: var(--r-pop);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+.type:hover { background: rgba(255, 255, 255, 0.08); }
+.type-name {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.type-count {
+    font-size: 10.5px;
+    color: var(--ui-text-label);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* One car per row: picture, name (and its class in a search), price. */
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 10px 0 6px;
+    margin-bottom: 2px;
+    border-radius: var(--r-pop);
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+.row:hover { background: rgba(255, 255, 255, 0.06); }
+
+.row-shot {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.row-shot img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.row-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.row-tag {
+    flex: 0 0 auto;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ui-text-label);
+}
+
+.row-price {
+    flex: 0 0 auto;
+    min-width: 70px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-text);
+}
+
+/* selected: white row, ink text. */
+.row.selected {
+    background: var(--white-fill);
+    color: var(--ink);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+.row.selected .row-tag { color: var(--ink-mid); }
+.row.selected .row-price { color: var(--ink); }
+.row.selected .row-shot img { filter: none; }
+
+/* Keyboard cursor on a class. */
+.type.cursor { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
+
+.empty {
+    padding: 18px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ui-text-mid);
+}
+
+/* ---- the keys ---- */
+
+/* The same height as the stage's foot, so the two dividers run as one line across the window. */
+.hint {
+    flex: 0 0 auto;
+    height: var(--foot-h);
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    padding: 0 16px;
+    border-top: 1px solid var(--ui-border);
+    font-size: 10.5px;
+    line-height: 2;
+    color: var(--ui-text-label);
+}
+.hint span {
+    display: inline-block;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+.hint kbd {
+    display: inline-block;
+    min-width: 17px;
+    margin-right: 2px;
+    padding: 0 5px;
+    font-family: var(--font);
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    color: var(--ui-text);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* ============================================
+   The stage: the car on show
+   ============================================ */
+
+.stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* Nothing picked yet: says how to start. */
+.stage-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 40px;
+    text-align: center;
+}
+.stage-empty[hidden] { display: none; }
+.stage-empty-glyph {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 8px;
+    color: var(--ui-text-dim);
+}
+.stage-empty-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ui-text);
+}
+.stage-empty-note {
+    font-size: 12px;
+    color: var(--ui-text-label);
+    font-variant-numeric: tabular-nums;
+}
+
+.car {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 28px 0;
+}
+.car[hidden] { display: none; }
+
+/* The picture, on a pool of showroom light. */
+.shot {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(52% 34% at 50% 78%, rgba(255, 255, 255, 0.07), transparent 72%);
+}
+.shot img {
+    max-width: 92%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
+}
+/* Swapping cars eases the new picture in rather than cutting. */
+.shot img.swap { animation: shotIn 0.22s var(--ui-ease) both; }
+@keyframes shotIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.car-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 14px 0 16px;
+}
+.car-names { min-width: 0; }
+.car-name {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.car-meta {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--ui-text-label);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The price, set like whip_autos' basket total. */
+.car-price {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+}
+
+/* ---- performance: four bars, against the best on the lot ---- */
+
+.stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 36px;
+    padding: 16px 0 18px;
+    border-top: 1px solid var(--ui-border);
+}
+.stat { min-width: 0; }
+.stat-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 7px;
+}
+.stat dt {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ui-text-label);
+}
+.stat dd {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-text);
+}
+.bar {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+.bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--white-fill);
+    transform-origin: left center;
+    transition: transform 0.32s var(--ui-ease);
+}
+
+/* ---- the foot: delivery, and Buy ---- */
+
+.car-foot {
+    flex: 0 0 auto;
+    height: var(--foot-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin: 0 -28px;
+    padding: 0 28px;
+    border-top: 1px solid var(--ui-border);
+}
+.car-note {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    line-height: 1.3;
+}
+.car-note b { font-size: 13px; font-weight: 700; color: #fff; }
+.car-note span { font-size: 11px; color: var(--ui-text-label); }
+
+/* ============================================
+   Buttons
+   ============================================
+   whip's pair: primary = white block with ink, quiet = cancel ground. */
+
+.btn-hot {
+    border: 0;
+    font-family: var(--font);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--white-fill);
+    border-radius: var(--r-slot);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
+}
+.btn-hot:hover:not(:disabled),
+.btn-hot:focus-visible {
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16), 0 2px 12px rgba(0, 0, 0, 0.5);
+    outline: none;
+}
+.btn-hot:active:not(:disabled) { transform: scale(0.98); }
+.btn-hot:disabled {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ui-text-dim);
+    box-shadow: none;
+    cursor: default;
+}
+
+.buy {
+    flex: 0 0 auto;
+    min-width: 220px;
+    padding: 12px 22px;
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.btn {
+    font-family: var(--font);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    border: 0;
+    border-radius: var(--r-slot);
+    cursor: pointer;
+}
+.btn-quiet {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ui-text-mid);
+    transition: background 0.14s ease, color 0.14s ease;
+}
+.btn-quiet:hover,
+.btn-quiet:focus-visible { background: rgba(255, 255, 255, 0.1); color: var(--ui-text); outline: none; }
+
+/* ============================================
+   Checkout — whip_autos' basket card, over the dimmed window
+   ============================================ */
+
+.confirm {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 5;
+}
+.confirm[hidden] { display: none; }
+
+.confirm-box {
+    position: relative;
+    width: 420px;
+    padding: 22px 24px 20px;
+    background: rgba(10, 12, 18, 0.97);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--r-panel);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+    animation: boxIn 0.25s var(--ui-ease) both;
+}
+
+@keyframes boxIn {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+}
+
+.confirm-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.confirm-body {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--ui-text-mid);
+    margin-bottom: 14px;
+}
+
+.confirm-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* The one line: picture, name over class, price. */
+.line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+}
+.line-shot {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.line-shot img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+.line-what {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.3;
+}
+.line-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.line-class {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ui-text-label);
+}
+.line-price {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+}
+
+/* Total, with cash on you under it. */
+.sum {
+    border-top: 1px solid var(--ui-border);
+    padding-top: 14px;
+    margin-bottom: 10px;
+}
+.sum-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ui-text-label);
+}
+.sum-cash { margin-top: 2px; }
+.sum-cash #co-cash {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--ui-text-mid);
+}
+
+/* The total, set like the vehicle HUD's speed. */
+.pay-total {
+    font-variant-numeric: tabular-nums;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #fff;
+}
+
+/* Cash / Bank tiles; hovering fills the badge white. */
+.pay-methods {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.pay-method {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    text-align: left;
+    font-family: var(--font);
+    color: var(--ui-text);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--r-pop);
+    cursor: pointer;
+    transition: border-color 0.14s ease, background 0.14s ease, transform 0.18s var(--ui-ease);
+}
+.pay-method .disc { width: 34px; height: 34px; }
+.pay-method .disc svg { width: 17px; height: 17px; }
+
+.pay-method:hover:not(:disabled),
+.pay-method:focus-visible,
+.pay-method.on {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.28);
+    outline: none;
+}
+.pay-method:hover:not(:disabled) { transform: translateY(-2px); }
+.pay-method:hover:not(:disabled) .disc,
+.pay-method:focus-visible .disc,
+.pay-method.on .disc {
+    background: #fff;
+    border-color: #fff;
+    color: var(--ink);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.9), 0 0 0 4px rgba(255, 255, 255, 0.28);
+}
+
+.pay-method-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    line-height: 1.3;
+}
+.pay-method-text b { font-size: 14px; font-weight: 700; color: #fff; }
+.pay-method-text small {
+    font-size: 10.5px;
+    color: var(--ui-text-label);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pay-method.short .pay-method-text small { color: var(--ui-error); }
+
+/* Not enough money that way, or an order in flight. */
+.pay-method:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+/* A tile that is short stays readable: the red note is the reason. */
+.pay-method.short:disabled { opacity: 0.6; }
+
+/* ---- several accounts: Bank opens this list ---- */
+
+.accounts { margin: -4px 0 14px; }
+.accounts[hidden] { display: none; }
+.accounts-k {
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ui-text-label);
+}
+.account-list {
+    max-height: 146px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    margin-bottom: 2px;
+    font-family: var(--font);
+    text-align: left;
+    color: var(--ui-text);
+    background: rgba(255, 255, 255, 0.03);
+    border: 0;
+    border-radius: var(--r-pop);
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+.account:hover:not(:disabled),
+.account:focus-visible {
+    background: var(--white-fill);
+    color: var(--ink);
+    outline: none;
+}
+.account-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.account-num {
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-text-label);
+}
+.account-bal {
+    min-width: 76px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.account:hover:not(:disabled) .account-num,
+.account:focus-visible .account-num { color: var(--ink-mid); }
+.account:disabled { cursor: default; opacity: 0.4; }
+
+/* What happened: paying, or why it did not go through. */
+.co-status {
+    margin: -4px 0 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ui-text-mid);
+}
+.co-status[hidden] { display: none; }
+.co-status.bad { color: var(--ui-error); }
+
+/* ---- on a controller (dealership.js padPress, Josh 9 Oct 2026) ----
+   The hint line's buttons are whip's pictures of them. In checkout the pad moves the focus by script,
+   which need not show :focus-visible, so on a pad plain :focus looks the same. */
+.hint .pad-g {
+    display: inline-block;
+    height: 15px;
+    width: auto;
+    margin-right: 3px;
+    vertical-align: -3px;
+}
+#dealer.pad .pay-method:focus {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.28);
+    outline: none;
+}
+#dealer.pad .pay-method:focus .disc {
+    background: #fff;
+    border-color: #fff;
+    color: var(--ink);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.9), 0 0 0 4px rgba(255, 255, 255, 0.28);
+}
+#dealer.pad .account:focus { background: var(--white-fill); color: var(--ink); outline: none; }
+#dealer.pad .account:focus .account-num { color: var(--ink-mid); }
+#dealer.pad .btn-quiet:focus { background: rgba(255, 255, 255, 0.1); color: var(--ui-text); outline: 2px solid rgba(255, 255, 255, 0.85); }
+/* The search bar with the D-pad on it (padPress): white, as the pad's other lit things are; A types. */
+#dealer.pad .search.pad-lit {
+    border-color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.9), 0 0 0 4px rgba(255, 255, 255, 0.2);
+}
