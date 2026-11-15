@@ -4,7 +4,8 @@ Simon's car lot: walk up to Simon, browse the cars with their pictures, pay cash
 is waiting at the lot, yours to keep.
 
 - **Needs:** whip_core.
-- **Install:** it comes in the `[whip]` folder, and `ensure [whip]` starts it. Nothing to add to server.cfg, no SQL.
+- **Install:** the WHIP recipes put it in `resources/whip_dealership` and start it with `ensure whip_dealership`, after
+  `ensure whip_core`. To add it yourself, do the same: its folder in `resources` and that line in server.cfg. No SQL.
 - **What Simon sells:** every car in whip_core's vehicle catalog that has a picture, in a class he sells (no boats,
   planes, helicopters, trains, military or bicycles: `Config.SellableClasses`). The catalog is whip_core's: the 930
   cars in `whip_core/server/vehicle_catalog_list.lua`, each with its picture in whip_assets_4. To add a car, see the
