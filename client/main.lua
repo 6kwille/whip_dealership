@@ -6,7 +6,10 @@ local typing = false   -- whip's keyboard is up for the search
 
 -- Controller: whip's pad reader for screens (Whip.padScreen) sends presses to the page ('pad', dealership.js
 -- padPress); the mouse moving brings the cursor back. Typing a search is whip's keyboard (OpenKeyboard).
-local screen = Whip.padScreen()
+-- 'rb' triggers Test Drive when a vehicle is selected.
+local screen = Whip.padScreen({
+    buttons = { 'up', 'down', 'left', 'right', 'a', 'b', 'x', 'y', 'rb' },
+})
 
 -- ============================================
 -- The menu
@@ -137,13 +140,17 @@ RegisterNetEvent('whip_dealership:client:testDriveStarted', function(info)
     testDriveActive = true
     testDriveEnding = false
 
+    local onPad = not IsUsingKeyboard(0)
     SendNUIMessage({
         action   = 'testDriveStart',
         name     = info.name or info.model or 'Vehicle',
         duration = tonumber(info.duration) or 120,
+        pad      = onPad,
     })
     exports.whip_core:Notify(
-        ('Test drive started (%s) — press Backspace to finish early'):format(info.name or info.model or 'vehicle'),
+        onPad
+            and ('Test drive started (%s) — hold B to finish early'):format(info.name or info.model or 'vehicle')
+            or ('Test drive started (%s) — press Backspace to finish early'):format(info.name or info.model or 'vehicle'),
         'info', 5000
     )
 
@@ -166,13 +173,37 @@ RegisterNetEvent('whip_dealership:client:testDriveStarted', function(info)
             end
         end
 
-        -- Allow ending early with Backspace (control 177) when no UI or pause menu is open.
+        -- Allow ending early: Backspace tap on keyboard, or hold B (600ms) on controller (so cinematic-cam taps don't cancel).
+        local padHoldStart = nil
+        local lastPad = onPad
         while testDriveActive do
+            local nowPad = not IsUsingKeyboard(0)
+            if nowPad ~= lastPad then
+                lastPad = nowPad
+                padHoldStart = nil
+                SendNUIMessage({ action = 'testDrivePad', pad = nowPad })
+            end
+
             if not testDriveEnding and not IsPauseMenuActive() and not IsNuiFocused() then
-                if IsControlJustPressed(0, 177) then
-                    testDriveEnding = true
-                    TriggerServerEvent('whip_dealership:server:endTestDrive')
+                if not nowPad then
+                    if IsControlJustPressed(0, 177) then
+                        testDriveEnding = true
+                        TriggerServerEvent('whip_dealership:server:endTestDrive')
+                    end
+                else
+                    if IsControlPressed(0, 177) then
+                        if not padHoldStart then
+                            padHoldStart = GetGameTimer()
+                        elseif GetGameTimer() - padHoldStart >= 600 then
+                            testDriveEnding = true
+                            TriggerServerEvent('whip_dealership:server:endTestDrive')
+                        end
+                    else
+                        padHoldStart = nil
+                    end
                 end
+            else
+                padHoldStart = nil
             end
             Wait(0)
         end

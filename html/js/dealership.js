@@ -122,7 +122,10 @@ let padOn = false;   // a controller is driving the page (client/main.lua says s
 
 function renderHint(view) {
     const keys = padOn ? PAD_KEYS : GLYPH_KEYS;
-    const set = padOn && state.searchLit ? keys.bar : view === 'types' ? keys.types : keys.list;
+    let set = padOn && state.searchLit ? keys.bar : view === 'types' ? keys.types : keys.list;
+    if (padOn && !state.searchLit && view !== 'types' && state.testDrive > 0) {
+        set = [set[0], set[1], padImg('rb') + ' test drive', ...set.slice(2)];
+    }
     $('hint').innerHTML = set.map((h) => `<span>${h}</span>`).join('');
 }
 
@@ -237,7 +240,12 @@ function renderStage() {
     tdBtn.hidden = !tdSec;
     if (tdSec > 0) {
         const mins = tdSec >= 60 && tdSec % 60 === 0 ? `${tdSec / 60} min` : `${tdSec} s`;
-        tdBtn.textContent = state.testing ? 'Starting…' : `Test Drive (${mins})`;
+        const label = state.testing ? 'Starting…' : `Test Drive (${mins})`;
+        if (padOn && !state.testing) {
+            tdBtn.innerHTML = `${padImg('rb')}<span>${label}</span>`;
+        } else {
+            tdBtn.textContent = label;
+        }
         tdBtn.disabled = state.paying || state.testing;
     }
 
@@ -500,10 +508,19 @@ function startTestDrive() {
     }, 10000);
 }
 
-function showTestDriveHud(name, duration) {
+function setTestDriveSub(onPad) {
+    const sub = document.querySelector('#td-hud .td-sub');
+    if (!sub) return;
+    sub.innerHTML = onPad
+        ? `Test drive · hold ${padImg('b')} to end`
+        : 'Test drive · <kbd>Backspace</kbd> to end';
+}
+
+function showTestDriveHud(name, duration, onPad) {
     clearInterval(tdInterval);
     const hud = $('td-hud');
     $('td-name').textContent = name || 'Vehicle';
+    setTestDriveSub(!!onPad);
     tdEndsAt = Date.now() + (Number(duration) || 120) * 1000;
 
     function tick() {
@@ -682,6 +699,10 @@ function padPress(cmd) {
         render();
         return;
     }
+    if (cmd === 'rb') {
+        if (view !== 'types' && state.picked && state.testDrive > 0) startTestDrive();
+        return;
+    }
     if (cmd === 'a' && view !== 'types' && !state.picked) { key('ArrowDown'); return; }
     if (PAD_KEY[cmd]) key(PAD_KEY[cmd]);
 }
@@ -692,6 +713,7 @@ function setPad(on) {
     $('dealer').classList.toggle('pad', padOn);
     $('search').classList.toggle('pad-lit', padOn && state.searchLit);   // here too: this draws no list
     renderHint(state.query.trim() ? 'search' : state.view);
+    if (state.picked) renderStage();
 }
 
 /* ---- messages from Lua ---------------------------------------------------- */
@@ -711,8 +733,9 @@ window.addEventListener('message', (event) => {
     else if (d.action === 'testDriveStart') {
         clearTimeout(testDriveLatch);
         state.testing = false;
-        showTestDriveHud(d.name, d.duration);
+        showTestDriveHud(d.name, d.duration, d.pad === true);
     }
+    else if (d.action === 'testDrivePad') setTestDriveSub(d.pad === true);
     else if (d.action === 'testDriveEnd') hideTestDriveHud();
     else if (d.action === 'pad') padPress(String(d.cmd || ''));
     else if (d.action === 'padDevice') setPad(d.pad === true);
