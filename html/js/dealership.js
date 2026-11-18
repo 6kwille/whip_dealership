@@ -59,11 +59,16 @@ const state = {
     searchLit: false,  // on a pad: the D-pad is on the search bar (padPress)
     best: {},          // the best of each stat on the lot, for the bars
     paying: false,     // one order at a time
+    testDrive: 0,      // seconds (0 = disabled)
+    testing: false,    // waiting for the server to start a test drive
 };
 
 let rows = [];          // the list as drawn: classes (numbers) or cars
 let cursor = -1;        // keyboard row in the list
 let payTimer = null;
+let testDriveLatch = null;
+let tdInterval = null;
+let tdEndsAt = 0;
 
 const $ = (id) => document.getElementById(id);
 
@@ -225,7 +230,16 @@ function renderStage() {
         .filter(Boolean).join(' · ');
     $('car-price').textContent = money(v.price);
     $('buy').textContent = `Buy — ${money(v.price)}`;
-    $('buy').disabled = state.paying;
+    $('buy').disabled = state.paying || state.testing;
+
+    const tdBtn = $('testdrive');
+    const tdSec = state.testDrive;
+    tdBtn.hidden = !tdSec;
+    if (tdSec > 0) {
+        const mins = tdSec >= 60 && tdSec % 60 === 0 ? `${tdSec / 60} min` : `${tdSec} s`;
+        tdBtn.textContent = state.testing ? 'Starting…' : `Test Drive (${mins})`;
+        tdBtn.disabled = state.paying || state.testing;
+    }
 
     // ---- the bars, against the best on the lot ----
     const dl = $('stats');
@@ -425,7 +439,10 @@ function open(data) {
     state.typeCursor = -1;
     state.searchLit = false;
     state.paying = false;
+    state.testDrive = Math.max(0, Number(data.testDrive) || 0);
+    state.testing = false;
     clearTimeout(payTimer);
+    clearTimeout(testDriveLatch);
 
     // The best of each stat on the lot, so a bar reads "against everything for sale here".
     state.best = {};
@@ -455,8 +472,57 @@ function close(tellLua) {
     root.setAttribute('aria-hidden', 'true');
     if (document.activeElement) document.activeElement.blur();
     clearTimeout(payTimer);
+    clearTimeout(testDriveLatch);
     state.paying = false;
+    state.testing = false;
     if (tellLua !== false) nui('dealershipClose', {});
+}
+
+/* ---- test drive ----------------------------------------------------------- */
+
+function formatCountdown(sec) {
+    const s = Math.max(0, Math.ceil(sec));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r < 10 ? '0' : ''}${r}`;
+}
+
+function startTestDrive() {
+    const v = state.picked;
+    if (!v || state.paying || state.testing || !state.testDrive) return;
+    state.testing = true;
+    renderStage();
+    nui('dealershipTestDrive', { model: v.model });
+    clearTimeout(testDriveLatch);
+    testDriveLatch = setTimeout(() => {
+        state.testing = false;
+        renderStage();
+    }, 10000);
+}
+
+function showTestDriveHud(name, duration) {
+    clearInterval(tdInterval);
+    const hud = $('td-hud');
+    $('td-name').textContent = name || 'Vehicle';
+    tdEndsAt = Date.now() + (Number(duration) || 120) * 1000;
+
+    function tick() {
+        const left = Math.max(0, (tdEndsAt - Date.now()) / 1000);
+        $('td-time').textContent = formatCountdown(left);
+        hud.classList.toggle('low', left <= 15);
+    }
+
+    tick();
+    hud.hidden = false;
+    tdInterval = setInterval(tick, 250);
+}
+
+function hideTestDriveHud() {
+    clearInterval(tdInterval);
+    tdInterval = null;
+    const hud = $('td-hud');
+    hud.hidden = true;
+    hud.classList.remove('low');
 }
 
 /* ---- input ---------------------------------------------------------------- */
@@ -542,6 +608,7 @@ document.querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click',
 $('back').addEventListener('click', back);
 $('close').addEventListener('click', () => close());
 $('buy').addEventListener('click', openCheckout);
+$('testdrive').addEventListener('click', startTestDrive);
 $('co-keep').addEventListener('click', closeCheckout);
 $('pay-cash').addEventListener('click', () => pay('cash', 0));
 $('pay-bank').addEventListener('click', () => {
@@ -636,6 +703,17 @@ window.addEventListener('message', (event) => {
     // A refused purchase: the reason stays on the card (whip's toast also shows it). A sale closes
     // the menu from Lua.
     else if (d.action === 'dealershipResult' && !d.ok) unlatch(d.message || 'That did not go through. Nothing was charged.');
+    else if (d.action === 'testDriveResult' && !d.ok) {
+        clearTimeout(testDriveLatch);
+        state.testing = false;
+        renderStage();
+    }
+    else if (d.action === 'testDriveStart') {
+        clearTimeout(testDriveLatch);
+        state.testing = false;
+        showTestDriveHud(d.name, d.duration);
+    }
+    else if (d.action === 'testDriveEnd') hideTestDriveHud();
     else if (d.action === 'pad') padPress(String(d.cmd || ''));
     else if (d.action === 'padDevice') setPad(d.pad === true);
     // What was typed on whip's keyboard: the search, and the first car it finds picked.
