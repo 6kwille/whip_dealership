@@ -186,12 +186,12 @@ RegisterNetEvent('whip_dealership:client:testDriveStarted', function(info)
 
             if not testDriveEnding and not IsPauseMenuActive() and not IsNuiFocused() then
                 if not nowPad then
-                    if IsControlJustPressed(0, 177) then
+                    if IsControlJustPressed(0, 194) then
                         testDriveEnding = true
                         TriggerServerEvent('whip_dealership:server:endTestDrive')
                     end
                 else
-                    if IsControlPressed(0, 177) then
+                    if IsControlPressed(0, 194) then
                         if not padHoldStart then
                             padHoldStart = GetGameTimer()
                         elseif GetGameTimer() - padHoldStart >= 600 then
